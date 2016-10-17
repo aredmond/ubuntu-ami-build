@@ -1,0 +1,7 @@
+---
+- name: lay down ubuntus base config
+  hosts: all
+  sudo: yes
+
+  roles:
+    - config

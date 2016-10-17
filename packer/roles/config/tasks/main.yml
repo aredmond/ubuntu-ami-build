@@ -1,0 +1,77 @@
+---
+- name: Copy bashrc to skel folder
+  copy: src=bashrc dest=/etc/skel/.bashrc
+
+- name: Copy vimrc to skel folder
+  copy: src=vimrc dest=/etc/skel/.vimrc
+
+- name: Copy bashrc to root folder
+  copy: src=bashrc dest=/root/.bashrc
+
+- name: Copy vimrc to root folder
+  copy: src=vimrc dest=/root/.vimrc
+
+- name: Copy sysctl.conf to /etc/dhcp/ to set up the network for things like varnish
+  copy: src=sysctl.conf dest=/etc/sysctl.conf
+
+- name: Copy dhclient.conf to /etc/dhcp/ to set MTU 1500 to match AWS
+  copy: src=dhclient.conf dest=/etc/dhcp/dhclient.conf
+
+- name: Copy rc.local to /etc/ to set txqueuelen and other network settings
+  copy: src=rc.local dest=/etc/rc.local
+
+- name: Copy bash_profile to skel folder and root
+  copy: src=bashprofile dest=/etc/skel/.bashrc
+
+- name: Copy bashrc to ubuntu home folder
+  copy: src=bashrc dest=/home/ubuntu/.bashrc owner=ubuntu group=ubuntu
+
+- name: Copy vimrc to ubuntu home folder
+  copy: src=vimrc dest=/home/ubuntu/.vimrc owner=ubuntu group=ubuntu
+
+- name: Copy bash_profile to admin home folder
+  copy: src=bashprofile dest=/home/ubuntu/.profile owner=ubuntu group=ubuntu
+
+
+- name: Install needed applications
+  apt: name={{ item }} state=present
+  with_items:
+     - vim
+     - python-pip
+     - sendmail
+     - sendmail-bin
+     - python-dev
+     - screen
+     - ksh
+     - curl
+     - git
+     - dkms
+
+- name: install virualenv via pip
+  pip: name={{ item }}
+  with_items:
+     - boto3
+
+- name: Copy the cfn build folder to the root directory
+  synchronize: src=roles/config/files/cfn-script/aws-cfn-bootstrap-1.4 dest=/root
+
+- name: install cfn-bootstrap via pip
+  pip: name='/root/aws-cfn-bootstrap-1.4'
+
+- name: Copy the ixgbevf-2.16.4 folder to the /usr/src/
+  synchronize: src=roles/config/files/ixgbevf-2.16.4 dest=/usr/src
+
+- name: Copy dkms.conf to /usr/src/ixgbevf-2.16.4/
+  copy: src=dkms.conf dest=/usr/src/ixgbevf-2.16.4/dkms.conf
+
+- name: dmks add for ixgbevf-2.16.4 For enhanced networking at AWS
+  command: dkms add -m ixgbevf -v 2.16.4
+
+- name: dmks build for ixgbevf-2.16.4 For enhanced networking at AWS
+  command: dkms build -m ixgbevf -v 2.16.4
+
+- name: dmks install for ixgbevf-2.16.4 For enhanced networking at AWS
+  command: dkms install -m ixgbevf -v 2.16.4
+
+- name: Rebuild the initramfs so the correct module is loaded at boot time.
+  command: update-initramfs -c -k all

@@ -1,0 +1,21 @@
+---
+- name: Add an Apt signing key for vanrish
+  apt_key: url=https://repo.varnish-cache.org/ubuntu/GPG-key.txt validate_certs=no state=present
+
+- name: Copy varnish-cache.list to /etc/apt/sources.list.d/ folder
+  copy: src=varnish-cache.list dest=/etc/apt/sources.list.d/varnish-cache.list
+
+- name: Upadate apt-get cache after adding varnish 4.0 to repos
+  apt: update_cache=yes
+
+- name: Install needed applications
+  apt: name={{ item }} state=present
+  with_items:
+     - varnish
+
+- name: Copy varnish file to /etc/default/ folder
+  copy: src=varnish dest=/etc/default/varnish
+
+- name: Copy default.vcl file to /etc/varnish/ folder
+  copy: src=default.vcl dest=/etc/varnish/default.vcl
+  notify: restart varnish

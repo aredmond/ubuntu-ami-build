@@ -1,0 +1,19 @@
+{
+  "builders": [{
+    "type": "amazon-ebs",
+    "region": "us-east-1",
+    "source_ami": "ami-195d0a0e",
+    "instance_type": "m3.medium",
+    "vpc_id": "vpc-XXXXXXXX",
+    "subnet_id": "subnet-XXXXXXXX",
+    "ssh_username": "ubuntu",
+    "enhanced_networking": true,
+    "ami_name": "ubuntu_base {{timestamp}}"
+  }],
+  "provisioners": [{
+    "type": "ansible-local",
+    "playbook_file": "Ubuntu_base.yml",
+    "group_vars": "./group_vars",
+    "role_paths": ["./roles/config"]
+  }]
+}

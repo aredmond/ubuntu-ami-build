@@ -1,0 +1,16 @@
+---
+# Random examples of what your can do with the group var folder
+key: value 
+sha256sum: 42ca594afc709cbef8528a6096f5a1efe96dcf3164e7ce321e87d57ae015cc82
+
+db_name: wordpress
+db_user: wordpress
+db_password: secret
+
+mysql_port: 3306
+
+server_hostname: 52.26.46.215
+
+auto_up_disable: false
+
+core_update_level: true

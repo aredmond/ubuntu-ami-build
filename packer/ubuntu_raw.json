@@ -1,0 +1,20 @@
+{
+  "builders": [{
+    "type": "amazon-ebs",
+    "region": "us-east-1",
+    "source_ami": "ami-0903481e",
+    "instance_type": "m3.medium",
+    "vpc_id": "vpc-XXXXXXX",
+    "subnet_id": "subnet-XXXXXXX",
+    "ssh_username": "ubuntu",
+    "ami_name": "ubuntu_raw {{timestamp}}"
+  }],
+  "provisioners": [{
+    "type": "shell",
+    "inline": [
+      "sleep 30",
+      "sudo apt-get update",
+      "sudo apt-get install -y ansible"
+    ]
+  }]
+}
