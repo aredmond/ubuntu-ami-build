@@ -1,0 +1,428 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "This template builds a Ubuntu ALB. **WARNING** This template creates Amazon EC2 instance and related resources. You will be billed for the AWS resources used if you create a stack from this template.",
+    "Parameters": {
+        "BuildNumber": {
+            "Description": "A number to increment each deployment",
+            "Type": "Number",
+            "Default": "1"
+        },
+        "UbuntuBackendSize": {
+            "Description": "Number of EC2 instances to launch for the Ubuntu servers",
+            "Type": "Number",
+            "Default": "1"
+        },
+        "KeyName": {
+            "Description": "Name of an existing EC2 KeyPair",
+            "Type": "AWS::EC2::KeyPair::KeyName",
+            "Default": "key-name",
+            "ConstraintDescription": "must be the name of an existing EC2 KeyPair."
+        },
+        "amiImageId": {
+            "Description": "AMI Image ID",
+            "Type": "AWS::EC2::Image::Id",
+            "Default": "ami-XXXXXXXX",
+            "ConstraintDescription": "must be the ID of an existing AMI."
+        },
+        "avZone": {
+            "Description": "Availablity Zone",
+            "Type": "CommaDelimitedList",
+            "Default": "us-east-1e",
+            "ConstraintDescription": "must be a valid availability zone."
+        },
+        "VPCID": {
+            "Description": "VPC",
+            "Type": "AWS::EC2::VPC::Id",
+            "Default": "vpc-XXXXXXXX",
+            "ConstraintDescription": "must be a valid VCP ID."
+        },
+        "SubnetID": {
+            "Description": "Subnet",
+            "Type": "AWS::EC2::Subnet::Id",
+            "Default": "subnet-XXXXXXXX",
+            "ConstraintDescription": "must be a valid Subnet ID."
+        },
+        "InstanceType": {
+            "Description": "Amazon EC2 instance type",
+            "Type": "String",
+            "Default": "t2.micro",
+            "AllowedValues": [
+                "t1.micro",
+                "t2.micro",
+                "t2.small",
+                "t2.medium",
+                "m1.small",
+                "m1.medium",
+                "m1.large",
+                "m1.xlarge",
+                "m2.xlarge",
+                "m2.2xlarge",
+                "m2.4xlarge",
+                "m3.medium",
+                "m3.large",
+                "m3.xlarge",
+                "m3.2xlarge",
+                "m4.large",
+                "m4.xlarge",
+                "m4.2xlarge",
+                "m4.4xlarge",
+                "m4.10xlarge",
+                "c1.medium",
+                "c1.xlarge",
+                "c3.large",
+                "c3.xlarge",
+                "c3.2xlarge",
+                "c3.4xlarge",
+                "c3.8xlarge",
+                "c4.large",
+                "c4.xlarge",
+                "c4.2xlarge",
+                "c4.4xlarge",
+                "c4.8xlarge",
+                "g2.2xlarge",
+                "r3.large",
+                "r3.xlarge",
+                "r3.2xlarge",
+                "r3.4xlarge",
+                "r3.8xlarge",
+                "i2.xlarge",
+                "i2.2xlarge",
+                "i2.4xlarge",
+                "i2.8xlarge",
+                "d2.xlarge",
+                "d2.2xlarge",
+                "d2.4xlarge",
+                "d2.8xlarge",
+                "hi1.4xlarge",
+                "hs1.8xlarge",
+                "cr1.8xlarge",
+                "cc2.8xlarge",
+                "cg1.4xlarge"
+            ],
+            "ConstraintDescription": "must be a valid EC2 instance type."
+        }
+    },
+    "Mappings": {
+        "fullEnvironment": {
+            "us-east-1": {
+                "prodblue": "prodeastblue",
+                "prodgreen": "prodeastgreen",
+                "test": "test"
+            },
+            "us-west-1": {
+                "prodblue": "prodwestblue",
+                "prodgreen": "prodwestgreen",
+                "test": "test"
+            },
+            "us-west-2": {
+                "prodblue": "prodwestblue",
+                "prodgreen": "prodwestgreen",
+                "test": "test"
+            }
+        },
+        "vpcID": {
+            "us-east-1": {
+                "prodblue": "vpc-c4dd76a1",
+                "prodgreen": "vpc-bfd3a6da",
+                "test": "vpc-2dc37648"
+            },
+            "us-west-1": {
+                "prodblue": "vpc-2dc37648",
+                "prodgreen": "vpc-bfd3a6da",
+                "test": "vpc-2dc37648"
+            },
+            "us-west-2": {
+                "prodblue": "vpc-2bb06e4e",
+                "prodgreen": "vpc-9915ccfc",
+                "test": "vpc-2dc37648"
+            }
+        }
+    },
+    "Resources": {
+        "UbuntuELB": {
+            "Type": "AWS::ElasticLoadBalancing::LoadBalancer",
+            "Properties": {
+                "Listeners": [{
+                    "LoadBalancerPort": "80",
+                    "InstancePort": "80",
+                    "Protocol": "HTTP"
+                }],
+                "Subnets": [{
+                    "Ref": "SubnetID"
+                }],
+            },
+            "DependsOn": "UbuntuLaunchConfig"
+        },
+        "AutoScalingGroup": {
+            "Type": "AWS::AutoScaling::AutoScalingGroup",
+            "Properties": {
+                "VPCZoneIdentifier": [{
+                    "Ref": "SubnetID"
+                }],
+                "LoadBalancerNames": [{
+                    "Ref": "UbuntuELB"
+                }],
+                "LaunchConfigurationName": {
+                    "Ref": "UbuntuLaunchConfig"
+                },
+                "MinSize": "1",
+                "MaxSize": "16",
+                "HealthCheckGracePeriod": 2000,
+                "HealthCheckType": "ELB",
+                "MetricsCollection": [{
+                    "Granularity": "1Minute",
+                    "Metrics": [
+                        "GroupInServiceInstances",
+                        "GroupTotalInstances"
+                    ]
+                }],
+                "DesiredCapacity": {
+                    "Ref": "UbuntuBackendSize"
+                },
+                "TerminationPolicies": [
+                    "OldestInstance"
+                ],
+                "Tags": [{
+                    "Key": "Network",
+                    "Value": "Private",
+                    "PropagateAtLaunch": "true"
+                }, {
+                    "Key": "Name",
+                    "Value": {
+                        "Fn::Join": [
+                            "", [{
+                                    "Ref": "AWS::StackName"
+                                },
+                                "-ubuntu", {
+                                    "Ref": "BuildNumber"
+                                }
+                            ]
+                        ]
+                    },
+                    "PropagateAtLaunch": "true"
+                }]
+            },
+            "CreationPolicy": {
+                "ResourceSignal": {
+                    "Count": "1",
+                    "Timeout": "PT15M"
+                }
+            },
+            "UpdatePolicy": {
+                "AutoScalingScheduledAction": {
+                    "IgnoreUnmodifiedGroupSizeProperties": "true"
+                },
+                "AutoScalingRollingUpdate": {
+                    "MinInstancesInService": "0",
+                    "MaxBatchSize": "1",
+                    "PauseTime": "PT8M",
+                    "WaitOnResourceSignals": "true"
+                }
+            },
+            "DependsOn": "UbuntuELB"
+        },
+        "UbuntuInstanceRole": {
+            "Type": "AWS::IAM::Role",
+            "Properties": {
+                "AssumeRolePolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [{
+                        "Effect": "Allow",
+                        "Principal": {
+                            "Service": [
+                                "ec2.amazonaws.com"
+                            ]
+                        },
+                        "Action": [
+                            "sts:AssumeRole"
+                        ]
+                    }]
+                },
+                "Path": "/",
+                "Policies": [{
+                    "PolicyName": "ubuntu-ec2",
+                    "PolicyDocument": {
+                        "Version": "2012-10-17",
+                        "Statement": [{
+                            "Effect": "Allow",
+                            "Action": "*",
+                            "Resource": "*"
+                        }]
+                    }
+                }]
+            }
+        },
+        "UbuntuInstanceProfile": {
+            "Type": "AWS::IAM::InstanceProfile",
+            "Properties": {
+                "Path": "/",
+                "Roles": [{
+                    "Ref": "UbuntuInstanceRole"
+                }]
+            }
+        },
+        "InstanceSecurityGroup": {
+            "Type": "AWS::EC2::SecurityGroup",
+            "Properties": {
+                "GroupDescription": "Enable RDP access and HTTP/HTTPS from the load balancer only",
+                "VpcId": {
+                    "Ref": "VPCID"
+                },
+                "SecurityGroupEgress": [{
+                    "IpProtocol": "-1",
+                    "FromPort": "-1",
+                    "ToPort": "-1",
+                    "CidrIp": "0.0.0.0/0"
+                }],
+                "SecurityGroupIngress": [{
+                    "IpProtocol": "tcp",
+                    "FromPort": "80",
+                    "ToPort": "80",
+                    "CidrIp": "0.0.0.0/0"
+                }, {
+                    "IpProtocol": "tcp",
+                    "FromPort": "443",
+                    "ToPort": "443",
+                    "CidrIp": "0.0.0.0/0"
+                }, {
+                    "IpProtocol": "tcp",
+                    "FromPort": "22",
+                    "ToPort": "22",
+                    "CidrIp": "0.0.0.0/0"
+                }, {
+                    "IpProtocol": "icmp",
+                    "FromPort": "-1",
+                    "ToPort": "-1",
+                    "CidrIp": "0.0.0.0/0"
+                }]
+            }
+        },
+        "UbuntuLaunchConfig": {
+            "Type": "AWS::AutoScaling::LaunchConfiguration",
+            "Metadata": {
+                "Comment": "Install the Windows HG3 server",
+                "AWS::CloudFormation::Init": {
+                    "config": {
+                        "files": {
+                            "/tmp/setup.mysql": {
+                                "content": {
+                                    "Fn::Join": ["", [
+                                        "line 1\n",
+                                        "line 2\n"
+                                    ]]
+                                },
+                                "mode": "000644",
+                                "owner": "root",
+                                "group": "root"
+                            }
+                        },
+                        "commands": {
+                            "Deploy-Services": {
+                                "command": "echo 'Placeholder'"
+                            }
+                        },
+                        "services": {}
+                    }
+                }
+            },
+            "Properties": {
+                "IamInstanceProfile": {
+                    "Ref": "UbuntuInstanceProfile"
+                },
+                "InstanceType": {
+                    "Ref": "InstanceType"
+                },
+                "ImageId": {
+                    "Ref": "amiImageId"
+                },
+                "SecurityGroups": [{
+                    "Ref": "InstanceSecurityGroup"
+                }],
+                "KeyName": {
+                    "Ref": "KeyName"
+                },
+                "UserData": {
+                    "Fn::Base64": {
+                        "Fn::Join": ["", [
+                            "#!/bin/bash -xe\n",
+                            "/usr/local/bin/cfn-signal -e 0 --stack ", {
+                                "Ref": "AWS::StackName"
+                            },
+                            " --resource AutoScalingGroup ",
+                            " --region ", {
+                                "Ref": "AWS::Region"
+                            }, "\n"
+                        ]]
+                    }
+                }
+            }
+        },
+        "UbuntuScaleUpPolicy": {
+            "Type": "AWS::AutoScaling::ScalingPolicy",
+            "Properties": {
+                "AdjustmentType": "ChangeInCapacity",
+                "AutoScalingGroupName": {
+                    "Ref": "AutoScalingGroup"
+                },
+                "Cooldown": "300",
+                "ScalingAdjustment": "1"
+            }
+        },
+        "UbuntuScaleDownPolicy": {
+            "Type": "AWS::AutoScaling::ScalingPolicy",
+            "Properties": {
+                "AdjustmentType": "ChangeInCapacity",
+                "AutoScalingGroupName": {
+                    "Ref": "AutoScalingGroup"
+                },
+                "Cooldown": "300",
+                "ScalingAdjustment": "-1"
+            }
+        },
+        "UbuntuCPUAlarmHigh": {
+            "Type": "AWS::CloudWatch::Alarm",
+            "Properties": {
+                "AlarmDescription": "Scale-up if CPU > 55% for 5 minutes",
+                "MetricName": "CPUUtilization",
+                "Namespace": "AWS/EC2",
+                "Statistic": "Average",
+                "Period": "300",
+                "EvaluationPeriods": "1",
+                "Threshold": "55",
+                "AlarmActions": [{
+                    "Ref": "UbuntuScaleUpPolicy"
+                }],
+                "Dimensions": [{
+                    "Name": "AutoScalingGroupName",
+                    "Value": {
+                        "Ref": "AutoScalingGroup"
+                    }
+                }],
+                "ComparisonOperator": "GreaterThanThreshold"
+            }
+        },
+        "UbuntuCPUAlarmLow": {
+            "Type": "AWS::CloudWatch::Alarm",
+            "Properties": {
+                "AlarmDescription": "Scale-down if CPU < 10% for 15 minutes",
+                "MetricName": "CPUUtilization",
+                "Namespace": "AWS/EC2",
+                "Statistic": "Average",
+                "Period": "300",
+                "EvaluationPeriods": "3",
+                "Threshold": "10",
+                "AlarmActions": [{
+                    "Ref": "UbuntuScaleDownPolicy"
+                }],
+                "Dimensions": [{
+                    "Name": "AutoScalingGroupName",
+                    "Value": {
+                        "Ref": "AutoScalingGroup"
+                    }
+                }],
+                "ComparisonOperator": "LessThanThreshold"
+            }
+        }
+    },
+    "Outputs": {}
+}
